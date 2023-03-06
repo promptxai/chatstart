@@ -7,14 +7,11 @@ from google.cloud import firestore
 import datetime
 from google.oauth2 import service_account
 
-# Set page config
-st.set_page_config(
-    page_title="ChatStart - Ideate, explore, generate code for ChatGPT integration with your app",
-    page_icon="chatstart_icon_32.png",
-    layout="centered",
-    initial_sidebar_state="collapsed")
-
+# Setup session variables
 state = st.session_state
+
+if 'sidebar_state' not in st.session_state:
+    state.sidebar_state = 'collapsed'
 
 if 'authenticated_user' not in state:
     state.authenticated_user = False
@@ -61,6 +58,14 @@ if 'vegalite_chart' not in state:
 if 'state.youtube_trailer' not in state:
     state.youtube_trailer = ''
 
+# Set page config
+st.set_page_config(
+    page_title="ChatStart - Ideate, explore, generate code for ChatGPT integration with your app",
+    page_icon="chatstart_icon_32.png",
+    layout="centered",
+    initial_sidebar_state=state.sidebar_state)
+
+# Setup personas
 personas = {
 "🎨 DALL.E Expert Artist":
 '''System: You are a DALL.E Expert Artist who will ask the user questions about various 
@@ -205,8 +210,13 @@ with st.sidebar.form(key="role_form"):
         state.user_prompt = personas[state.selected_persona].splitlines()[-1].replace('User: ', '')
         state.get_code = False
 
-
-
+nav1, nav2 = st.columns([7, 1])
+with nav1:
+    st.write('Please waitlist for 💬&nbsp; ChatStart to enable featues.')
+with nav2:
+    if st.button('Waitlist'):
+        state.sidebar_state = 'expanded'
+        st.experimental_rerun()
 
 st.markdown("## 💬&nbsp; ChatStart | " + state.selected_persona if state.conversation else "## 💬&nbsp; ChatStart")
 
