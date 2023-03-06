@@ -7,6 +7,13 @@ from google.cloud import firestore
 import datetime
 from google.oauth2 import service_account
 
+# Set page config
+st.set_page_config(
+    page_title="ChatStart - Ideate, explore, generate code for ChatGPT integration with your app",
+    page_icon="chatstart_icon_32.png",
+    layout="centered",
+    initial_sidebar_state="collapsed")
+
 state = st.session_state
 
 if 'authenticated_user' not in state:
@@ -201,18 +208,33 @@ with st.sidebar.form(key="role_form"):
 
 
 
-st.markdown("## 💬 ChatStart | " + state.selected_persona if state.conversation else "## 💬 ChatStart")
+st.markdown("## 💬&nbsp; ChatStart | " + state.selected_persona if state.conversation else "## 💬&nbsp; ChatStart")
 
 st.markdown("**Ideate, explore, generate code for ChatGPT integration with your app**")
 
 if not state.conversation:
+    st.markdown('### ChatGPT and generative AI models are about to transform almost every industry')
+    st.markdown('#### 💬&nbsp; ChatStart helps stay ahead of the curve in three easy steps')
     st.markdown('### 1. Select an idea')
+    st.success('''Start by selecting an idea for your app, startup, or business project.
+    We will continue to add more ideas to the list covering industries, roles, and use cases.
+    &nbsp;💬&nbsp; ChatStart Premium users can also save their own ideas privately or share with others.''')
     st.image('ideate.png', width=350)
     
     st.markdown('### 2. Explore in chat')
+    st.info('''Once you have selected an idea, you can explore it in a custom chat powered by ChatGPT
+    and other generative AI models. You can fine tune your chatbot by simply chatting with it.
+    &nbsp;💬&nbsp; ChatStart Premium users can also save their chat explorations privately or share with others.''')
+
     st.image('explore.png')
 
     st.markdown('### 3. Generate tutorial and code')
+    st.warning('''Once satisfied with your chat exploration, you can hit `Generate Code` button. This will generate
+    a custom tutorial for this idea and code for integrating ChatGPT with your app. Your entire chat exploration
+    will be available to fine tune your chatbot.
+    &nbsp;💬&nbsp; ChatStart Premium users can also get access to advanced code and tutorials to integrated
+    with multiple APIs and models.''')
+
     st.image('tutorial_code.png')
 
     st.markdown('---')
@@ -220,9 +242,19 @@ if not state.conversation:
     st.markdown('## More Features')
 
     st.markdown('### Chain multiple models')
+    st.info('''Make your chat sessions super productive by chaining ChatGPT text with DALL.E image generations.
+    &nbsp;💬&nbsp; ChatStart Premium users can also get access to advanced code and tutorials to integrated
+    with multiple APIs and models.''')
+
     st.image('chaining.png')
 
     st.markdown('### Generate Python Dataframes')
+    st.success('''Integrate ChatStart generated code within your Python apps getting access to native constructs
+    like Pandas DataFrames, JSON objects, data structures like lists and dictionaries directly from within
+    a chat exploration.
+    &nbsp;💬&nbsp; ChatStart Premium users can also save these native objects and get access to advanced code
+    and tutorials to perform improved integrations.''')
+
     st.image('datasets.png')
 
     st.markdown('### Browse Media Inplace')
