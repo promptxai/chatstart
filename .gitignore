@@ -1,3 +1,6 @@
+key-to-toml.py
+.streamlit/secrets.toml
+firestore-key.json
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
