@@ -1,8 +1,6 @@
 openai
 pandas
-requests
 streamlit
-urllib3
 watchdog
 google-cloud-firestore
 google-auth
