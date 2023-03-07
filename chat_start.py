@@ -6,9 +6,23 @@ import io
 from google.cloud import firestore
 import datetime
 from google.oauth2 import service_account
+import os
+import warnings
+from PIL import Image
+from stability_sdk import client
+import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
+from googleapiclient.discovery import build
+
+GOOGLE_DEVELOPER_KEY = os.environ['GOOGLE_DEVELOPER_KEY']
 
 # Setup session variables
 state = st.session_state
+
+if 'sd_initialized' not in state:
+    state.sd_initialized = False
+
+if 'stability_api' not in state:
+    state.stability_api = None
 
 if 'sidebar_state' not in st.session_state:
     state.sidebar_state = 'collapsed'
@@ -39,6 +53,9 @@ if 'dataset_generated' not in state:
 
 if 'dalle_image' not in state:
     state.dalle_image = ''
+
+if 'sd_image' not in state:
+    state.sd_image = ''
 
 if 'icon' not in state:
     state.icon = '💬'
@@ -82,7 +99,18 @@ User: List files of current directory and copy to a text file called files_list.
 Assistant: `ls > files_list.txt`
 User: Parse paragraphs from https://en.wikipedia.org/wiki/Earth into a text file called earth.txt
 ''',        
-    
+
+"🛍️ Shopping Recommender":
+'''System: You are a Shopping Recommender. Ask the user questions about their preferences,
+tasters, and lifestyle. Respond with the brand, name, and model of the product enclosed in double quotes.
+Also explain why the product is recommended in a crisp single sentence.
+User: I need some shopping recommendations.
+Assistant: Tell me more about your tastes and lifestyle, so I can recommend the best products.
+User: I am an artist and an audiophile. I live in a loft apartment which resembles an art gallery.
+Assistant: Nice! What are you interested in buying?
+User: I am looking for a Smart TV for my loft.
+''',
+
 "🍿 Movie Database": 
 '''System: You are a Movie Database that responds with movies related information.
 Provide information in a crisp single sentence.
@@ -106,13 +134,13 @@ User: What is the usual dosage of paracetamol?
 Assistant: The usual dosage of paracetamol is 1-2 tablets every 4-6 hours.
 User: What are the side effects of paracetamol?''',
 
-"🎨 Stable Diffusion Pro Creator":
-'''System: You are a Stable Diffusion Pro Creator who will ask the user questions about various 
-features of image they want to create and then generate a prompt using 
-Stable Diffusion advanced prompt engineering features to get the best results.
-User: I want to create an image for my blog post.
-Assistant: What is the blog post about?
-User: It is about using physics to create innovative art for a city.''',
+"🧚 Stable Diffusion Story Generator":
+'''System: You are a Stable Diffusion Story Generator who creates 
+Stable Diffusion prompts in double quotes, which represent crisp one sentence 
+story pregressions based on user interactions.
+User: I am in the mood for some science fiction.
+Assistant: Ok, how do you want to start the story?
+User: Spaceship Anubis begins mission to explore a distant unknown galaxy.''',
 
 "📊 Vegalite Chart Generator":
 '''System: You are a Vegalite Chart Generator that can also generate datasets to use in the chart.
@@ -127,6 +155,44 @@ User: Create a list of 10 most populous cities in the world.''',
 User: Create a dataset of tallest buildings in the world.'''
 }
 
+def init_stability_api():
+    state.stability_api = client.StabilityInference(
+        key=os.environ['STABILITY_KEY'], # API Key reference.
+        verbose=True, # Print debug messages.
+        engine="stable-diffusion-v1-5", # Set the engine to use for generation. 
+        # Available engines: stable-diffusion-v1 stable-diffusion-v1-5 stable-diffusion-512-v2-0 stable-diffusion-768-v2-0 
+        # stable-diffusion-512-v2-1 stable-diffusion-768-v2-1 stable-inpainting-v1-0 stable-inpainting-512-v2-0
+    )
+    state.sd_initialized = True
+
+def generate_art_sd(prompt, size=512) -> Image:
+    if state.sd_initialized is False:
+        init_stability_api()
+
+    answers = state.stability_api.generate(
+        prompt=prompt,
+        cfg_scale=8.0,
+        width=size, # Generation width, defaults to 512 if not included.
+        height=size, # Generation height, defaults to 512 if not included.
+        sampler=generation.SAMPLER_K_DPMPP_2M # Choose which sampler we want to denoise our generation with.
+        # Defaults to k_dpmpp_2m if not specified. Clip Guidance only supports ancestral samplers.
+        # (Available Samplers: ddim, plms, k_euler, k_euler_ancestral, k_heun, k_dpm_2, k_dpm_2_ancestral, 
+        # k_dpmpp_2s_ancestral, k_lms, k_dpmpp_2m)
+    )
+
+    # Set up our warning to print to the console if the adult content classifier is tripped.
+    # If adult content classifier is not tripped, save generated images.
+    for resp in answers:
+        for artifact in resp.artifacts:
+            if artifact.finish_reason == generation.FILTER:
+                warnings.warn(
+                    "Your request activated the API's safety filters and could not be processed."
+                    "Please modify the prompt and try again.")
+            if artifact.type == generation.ARTIFACT_IMAGE:
+                img = Image.open(io.BytesIO(artifact.binary))
+                return img
+
+
 def generate_code():
     st.markdown('### Add {idea} to your app'.format(idea = state.selected_persona))
     st.markdown('**Step 1:**' + ' ' + 'Use the following code for ChatGPT API call.')
@@ -135,7 +201,7 @@ def generate_code():
 import openai
 
 openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
+        model="gpt-3.5-turbo-0301",
         messages= # Step 2: Copy the messages list here
         max_tokens=100,
         temperature=0.2,)
@@ -251,6 +317,15 @@ if not state.conversation:
 
     st.markdown('## More Features')
 
+    st.markdown('### Contextual Image Search')
+    st.success('''Integrate Google Image Search within your chat to discover images and links.
+    You can use this for creating chat based visual search apps for shopping, education, etc.
+    &nbsp;💬&nbsp; ChatStart Premium users can also save these discovered links and get access to advanced code
+    for Google API integrations.
+    ''')
+
+    st.image('shopping.png')
+
     st.markdown('### Chain multiple models')
     st.info('''Make your chat sessions super productive by chaining ChatGPT text with DALL.E image generations.
     &nbsp;💬&nbsp; ChatStart Premium users can also get access to advanced code and tutorials to integrated
@@ -268,9 +343,18 @@ if not state.conversation:
     st.image('datasets.png')
 
     st.markdown('### Browse Media Inplace')
+    st.warning('''Use chat to browse media, see images, watch related videos in place.
+    &nbsp;💬&nbsp; ChatStart Premium users can save these discovered media objects
+    and also connect with multiple media providers.''')
+
     st.image('media.png')
 
     st.markdown('### Query Data and Generate Charts Interactively')
+    st.info('''Use natural language to query world knowledge for generating custom datasets 
+    and then visualize these datasets into charts and analytics, which can be modified using plain English.
+    &nbsp;💬&nbsp; ChatStart Premium users can also save these datasets and analytics for
+    retrieving at a later date or sharing with others.''')
+
     st.image('charts.png')
 
     st.markdown('### Simulate Expert Advisor')
@@ -278,6 +362,10 @@ if not state.conversation:
 
     st.markdown('### Specialized Learning Tool')
     st.image('learning.png')
+
+    st.markdown('### Visual Story Generation')
+    st.image('story.png')
+
 
 if state.conversation:
     # get icon from the persona name
@@ -299,6 +387,48 @@ if state.conversation:
         generated_image = response['data'][0]['url']
         st.image(generated_image, caption='DALL.E Generated Image')
         state.dalle_image = generated_image
+    if '"' in state.conversation and 'Shopping Recommender' in state.selected_persona:
+        num_quotes = state.conversation.count('"')
+        search_query = state.conversation.split('"')[num_quotes - 1]
+        
+        service = build("customsearch", "v1", developerKey=GOOGLE_DEVELOPER_KEY)
+
+        res = (service.cse().list(
+                    q=search_query,
+                    cx="a65812bec92ed4b8c",
+                    num=3,
+                    searchType="image",
+                    filter="1",
+                    safe="active",
+                ).execute())
+        
+        ci1, ci2, ci3 = st.columns(3)
+        with ci1:
+            thumbnail = res["items"][0]["image"]["thumbnailLink"]
+            link = res["items"][0]["image"]["contextLink"]
+            domain = link.split('/')[2]
+            st.markdown('[![]({thumbnail})]({link})'.format(thumbnail=thumbnail, link=link))
+            st.markdown('[{domain}]({link})'.format(domain=domain, link=link))
+        with ci2:
+            thumbnail = res["items"][1]["image"]["thumbnailLink"]
+            link = res["items"][1]["image"]["contextLink"]
+            domain = link.split('/')[2]
+            st.markdown('[![]({thumbnail})]({link})'.format(thumbnail=thumbnail, link=link))
+            st.markdown('[{domain}]({link})'.format(domain=domain, link=link))
+        with ci3:
+            thumbnail = res["items"][2]["image"]["thumbnailLink"]
+            link = res["items"][2]["image"]["contextLink"]
+            domain = link.split('/')[2]
+            st.markdown('[![]({thumbnail})]({link})'.format(thumbnail=thumbnail, link=link))
+            st.markdown('[{domain}]({link})'.format(domain=domain, link=link))
+
+
+    if '"' in state.conversation and 'Stable Diffusion Story Generator' in state.selected_persona:
+        num_quotes = state.conversation.count('"')
+        prompt = state.conversation.split('"')[num_quotes - 1]
+        generated_image = generate_art_sd(prompt)
+        st.image(generated_image, caption='Stable Diffusion Generated Image')
+        state.sd_image = generated_image
 
     if 'Dataset Generator' in state.selected_persona and '```' in state.conversation:
         num_csv = state.conversation.count('```')
