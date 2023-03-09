@@ -75,6 +75,21 @@ if 'vegalite_chart' not in state:
 if 'state.youtube_trailer' not in state:
     state.youtube_trailer = ''
 
+if 'chatgpt_runs' not in state:
+    state.chatgpt_runs = 0
+
+if 'sd_runs' not in state:
+    state.sd_runs = 0
+
+if 'dalle_runs' not in state:
+    state.dalle_runs = 0
+
+if 'chatgpt_tokens_used' not in state:
+    state.chatgpt_tokens_used = 0
+
+if 'google_api_runs' not in state:
+    state.google_api_runs = 0
+
 # Set page config
 st.set_page_config(
     page_title="ChatStart - Ideate, explore, generate code for ChatGPT integration with your app",
@@ -106,9 +121,9 @@ tasters, and lifestyle. Respond with the brand, name, and model of the product e
 Also explain why the product is recommended in a crisp single sentence.
 User: I need some shopping recommendations.
 Assistant: Tell me more about your tastes and lifestyle, so I can recommend the best products.
-User: I am an artist and an audiophile. I live in a loft apartment which resembles an art gallery.
+User: I am an artist, avid gamer, and an audiophile. I live in an ultra-modern loft apartment.
 Assistant: Nice! What are you interested in buying?
-User: I am looking for a Smart TV for my loft.
+User: I am looking for a Smart TV.
 ''',
 
 "🍿 Movie Database": 
@@ -180,6 +195,8 @@ def generate_art_sd(prompt, size=512) -> Image:
         # k_dpmpp_2s_ancestral, k_lms, k_dpmpp_2m)
     )
 
+    state.sd_runs += 1
+
     # Set up our warning to print to the console if the adult content classifier is tripped.
     # If adult content classifier is not tripped, save generated images.
     for resp in answers:
@@ -214,6 +231,8 @@ if not state.waitlisted and not state.show_login and not state.authenticated_use
     with st.sidebar.form('waitlist_form'):
         st.markdown('### Waitlist for ChatStart')
         email = st.text_input("Email")
+        code = st.text_input("Code")
+        st.caption("If you have received a license key or promo code, enter it here.")
         submit_button = st.form_submit_button(label="Apply")
 
         if submit_button:
@@ -226,6 +245,7 @@ if not state.waitlisted and not state.show_login and not state.authenticated_use
                 st.sidebar.error("Email already in waitlist")
             else:
                 doc_ref.set({
+                    'code': code,
                     'timestamp': datetime.datetime.now()
                 })
                 state.waitlisted = True
@@ -233,6 +253,14 @@ if not state.waitlisted and not state.show_login and not state.authenticated_use
 
 def login():
     state.show_login = True
+st.sidebar.markdown('### 🔒 User Account')
+if state.authenticated_user:
+    st.sidebar.markdown('Welcome ' + state.login)
+    st.sidebar.markdown('**ChatGPT Tokens Used:** ' + str(state.chatgpt_tokens_used))
+    st.sidebar.markdown('**ChatGPT Runs:** ' + str(state.chatgpt_runs))
+    st.sidebar.markdown('**Stability Runs:** ' + str(state.sd_runs))
+    st.sidebar.markdown('**DALL.E Runs:** ' + str(state.dalle_runs))
+    st.sidebar.markdown('**Google API Runs:** ' + str(state.google_api_runs))
 
 if not state.authenticated_user and not state.show_login:
     st.sidebar.button('Login', on_click=login)
@@ -284,7 +312,11 @@ with nav2:
         state.sidebar_state = 'expanded'
         st.experimental_rerun()
 
-st.markdown("## 💬&nbsp; ChatStart | " + state.selected_persona if state.conversation else "## 💬&nbsp; ChatStart")
+logo_nav1, logo_nav2 = st.columns([3, 5])
+with logo_nav1:
+    st.image('chatstart_logo_wide_w250.png', width=250)
+with logo_nav2:
+    st.markdown("#### " + state.selected_persona if state.conversation else "")
 
 st.markdown("**Ideate, explore, generate code for ChatGPT integration with your app**")
 
@@ -384,6 +416,8 @@ if state.conversation:
             n=1,
             size="1024x1024"
         )
+        state.dalle_runs += 1
+
         generated_image = response['data'][0]['url']
         st.image(generated_image, caption='DALL.E Generated Image')
         state.dalle_image = generated_image
@@ -402,6 +436,8 @@ if state.conversation:
                     safe="active",
                 ).execute())
         
+        state.google_api_runs += 1
+
         ci1, ci2, ci3 = st.columns(3)
         with ci1:
             thumbnail = res["items"][0]["image"]["thumbnailLink"]
@@ -485,7 +521,10 @@ if state.conversation:
                 model="gpt-3.5-turbo-0301",
                 messages=state.messages,
                 max_tokens=500,
-                temperature=0)        
+                temperature=0)
+
+            state.chatgpt_runs += 1
+            state.chatgpt_tokens_used += response.usage.total_tokens
             # append the response to the conversation
             state.conversation += '\n' + 'Assistant: ' + response.choices[0].message.content
             # force render the page
