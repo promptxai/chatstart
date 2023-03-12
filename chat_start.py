@@ -13,92 +13,40 @@ from stability_sdk import client
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 from googleapiclient.discovery import build
 
+from chatstart_sdk import session
+
 GOOGLE_DEVELOPER_KEY = os.environ['GOOGLE_DEVELOPER_KEY']
 
 # Setup session variables
 state = st.session_state
 
-if 'sd_initialized' not in state:
-    state.sd_initialized = False
+# Integrations with LLMs, APIs, and Content sources
+if 'stability' not in state:
+    state.stability = session.Stability()
+if 'open_ai' not in state:
+    state.open_ai = session.OpenAI()
+if 'google' not in state:
+    state.google = session.Google()
+if 'content' not in state:
+    state.content = session.Content()
 
-if 'stability_api' not in state:
-    state.stability_api = None
-
-if 'sidebar_state' not in st.session_state:
-    state.sidebar_state = 'collapsed'
-
-if 'authenticated_user' not in state:
-    state.authenticated_user = False
-
-if 'show_login' not in state:
-    state.show_login = False
-
-if 'login' not in state:
-    state.login = ''
-
-if 'waitlisted' not in state:
-    state.waitlisted = False
-
-if 'conversation' not in state:
-    state.conversation = []
-
-if 'selected_messages' not in state:
-    state.selected_messages = []
-
-if 'user_prompt' not in state:
-    state.user_prompt = ''
-
-if 'dataset_generated' not in state:
-    state.dataset_generated = None
-
-if 'dalle_image' not in state:
-    state.dalle_image = ''
-
-if 'sd_image' not in state:
-    state.sd_image = ''
-
-if 'icon' not in state:
-    state.icon = '💬'
-
-if 'messages' not in state:
-    state.messages = []
-
-if 'get_code' not in state:
-    state.get_code = False
-
-if 'selected_persona' not in state:
-    state.selected_persona = ''
-
-if 'vegalite_chart' not in state:
-    state.vegalite_chart = ''
-
-if 'state.youtube_trailer' not in state:
-    state.youtube_trailer = ''
-
-if 'chatgpt_runs' not in state:
-    state.chatgpt_runs = 0
-
-if 'sd_runs' not in state:
-    state.sd_runs = 0
-
-if 'dalle_runs' not in state:
-    state.dalle_runs = 0
-
-if 'chatgpt_tokens_used' not in state:
-    state.chatgpt_tokens_used = 0
-
-if 'google_api_runs' not in state:
-    state.google_api_runs = 0
+# User Experience
+if 'user' not in state:
+    state.user = session.User()
+if 'ux' not in state:
+    state.ux = session.UX()
+if 'chat' not in state:
+    state.chat = session.Chat()
 
 # Set page config
 st.set_page_config(
     page_title="ChatStart - Ideate, explore, generate code for ChatGPT integration with your app",
     page_icon="chatstart_icon_32.png",
     layout="centered",
-    initial_sidebar_state=state.sidebar_state)
+    initial_sidebar_state=state.ux.sidebar)
 
-# Setup personas
-personas = {
+# Setup ideas
+ideas = {
 "🎨 DALL.E Expert Artist":
 '''System: You are a DALL.E Expert Artist who will ask the user questions about various 
 features of art they want to create and then generate a prompt using 
@@ -171,20 +119,20 @@ User: Create a dataset of tallest buildings in the world.'''
 }
 
 def init_stability_api():
-    state.stability_api = client.StabilityInference(
+    state.stability.api = client.StabilityInference(
         key=os.environ['STABILITY_KEY'], # API Key reference.
         verbose=True, # Print debug messages.
         engine="stable-diffusion-v1-5", # Set the engine to use for generation. 
         # Available engines: stable-diffusion-v1 stable-diffusion-v1-5 stable-diffusion-512-v2-0 stable-diffusion-768-v2-0 
         # stable-diffusion-512-v2-1 stable-diffusion-768-v2-1 stable-inpainting-v1-0 stable-inpainting-512-v2-0
     )
-    state.sd_initialized = True
+    state.stability.initialized = True
 
 def generate_art_sd(prompt, size=512) -> Image:
-    if state.sd_initialized is False:
+    if state.stability.initialized is False:
         init_stability_api()
 
-    answers = state.stability_api.generate(
+    answers = state.stability.api.generate(
         prompt=prompt,
         cfg_scale=8.0,
         width=size, # Generation width, defaults to 512 if not included.
@@ -195,7 +143,7 @@ def generate_art_sd(prompt, size=512) -> Image:
         # k_dpmpp_2s_ancestral, k_lms, k_dpmpp_2m)
     )
 
-    state.sd_runs += 1
+    state.stability.runs += 1
 
     # Set up our warning to print to the console if the adult content classifier is tripped.
     # If adult content classifier is not tripped, save generated images.
@@ -211,7 +159,7 @@ def generate_art_sd(prompt, size=512) -> Image:
 
 
 def generate_code():
-    st.markdown('### Add {idea} to your app'.format(idea = state.selected_persona))
+    st.markdown('### Add {idea} to your app'.format(idea = state.chat.idea))
     st.markdown('**Step 1:**' + ' ' + 'Use the following code for ChatGPT API call.')
     st.markdown(
         '''```python
@@ -225,9 +173,9 @@ openai.ChatCompletion.create(
 )
         ''')
     st.markdown('**Step 2:**' + ' ' + 'Copy the following messages list and assign to `messages` variable.')
-    st.code(state.messages)
+    st.code(state.chat.messages)
 
-if not state.waitlisted and not state.show_login and not state.authenticated_user:
+if not state.user.waitlisted and not state.user.login_form and not state.user.authenticated:
     with st.sidebar.form('waitlist_form'):
         st.markdown('### Waitlist for ChatStart')
         email = st.text_input("Email")
@@ -248,24 +196,16 @@ if not state.waitlisted and not state.show_login and not state.authenticated_use
                     'code': code,
                     'timestamp': datetime.datetime.now()
                 })
-                state.waitlisted = True
+                state.user.waitlisted = True
                 st.sidebar.success("You have been added to the waitlist. We will notify you when you can use ChatStart.")
 
 def login():
-    state.show_login = True
-st.sidebar.markdown('### 🔒 User Account')
-if state.authenticated_user:
-    st.sidebar.markdown('Welcome ' + state.login)
-    st.sidebar.markdown('**ChatGPT Tokens Used:** ' + str(state.chatgpt_tokens_used))
-    st.sidebar.markdown('**ChatGPT Runs:** ' + str(state.chatgpt_runs))
-    st.sidebar.markdown('**Stability Runs:** ' + str(state.sd_runs))
-    st.sidebar.markdown('**DALL.E Runs:** ' + str(state.dalle_runs))
-    st.sidebar.markdown('**Google API Runs:** ' + str(state.google_api_runs))
+    state.user.login_form = True
 
-if not state.authenticated_user and not state.show_login:
+if not state.user.authenticated and not state.user.login_form:
     st.sidebar.button('Login', on_click=login)
 
-if not state.authenticated_user and state.show_login:
+if not state.user.authenticated and state.user.login_form:
     with st.sidebar.form(key="login_form"):
         login = st.text_input("Login")
         password = st.text_input("Password", type="password")
@@ -279,9 +219,9 @@ if not state.authenticated_user and state.show_login:
             doc = doc_ref.get()
             if doc.exists:
                 if doc.to_dict()['password'] == password:
-                    state.authenticated_user = True
-                    state.login = login
-                    state.show_login = False
+                    state.user.authenticated = True
+                    state.user.login = login
+                    state.user.login_form = False
                     st.sidebar.success("Login successful")
                 else:
                     st.sidebar.error("Incorrect password")
@@ -292,36 +232,48 @@ st.sidebar.markdown("### 💡 Select Idea")
 # create a form to collect user input
 with st.sidebar.form(key="role_form"):
     # add a text field to the form
-    state.selected_persona = st.selectbox("Start typing to search or select", personas.keys())
+    state.chat.idea = st.selectbox("Start typing to search or select", ideas.keys())
     # add a submit button to the form
-    submit_button = st.form_submit_button(label="Explore Chat", disabled=not state.authenticated_user)
+    submit_button = st.form_submit_button(label="Explore Chat", disabled=not state.user.authenticated)
 
     # if the form is submitted
     if submit_button:
-        # set the conversation to the selected persona after removing the last line and joining the lines with new line
-        state.conversation = '\n'.join(personas[state.selected_persona].splitlines()[:-1])
-        # set the last line in personas as the user prompt
-        state.user_prompt = personas[state.selected_persona].splitlines()[-1].replace('User: ', '')
-        state.get_code = False
+        # set the conversation to the selected idea after removing the last line and joining the lines with new line
+        state.chat.conversation = '\n'.join(ideas[state.chat.idea].splitlines()[:-1])
+        # set the last line in ideas as the user prompt
+        state.chat.prompt = ideas[state.chat.idea].splitlines()[-1].replace('User: ', '')
+        state.ux.code = False
+
+st.sidebar.markdown('### 🔒 User Account')
+if state.user.authenticated:
+    # st.sidebar.markdown('Welcome ' + state.user.login)
+    st.sidebar.markdown('**ChatGPT Tokens Used:** ' + str(state.open_ai.tokens))
+    st.sidebar.markdown('**ChatGPT Runs:** ' + str(state.open_ai.chatgpt_runs))
+    st.sidebar.markdown('**Stability Runs:** ' + str(state.stability.runs))
+    st.sidebar.markdown('**DALL.E Runs:** ' + str(state.open_ai.dalle_runs))
+    st.sidebar.markdown('**Google API Runs:** ' + str(state.google.runs))
 
 nav1, nav2 = st.columns([7, 1])
 with nav1:
     st.write('Please waitlist for 💬&nbsp; ChatStart to enable featues.')
 with nav2:
     if st.button('Waitlist'):
-        state.sidebar_state = 'expanded'
+        state.ux.sidebar = 'expanded'
         st.experimental_rerun()
 
 logo_nav1, logo_nav2 = st.columns([3, 5])
 with logo_nav1:
     st.image('chatstart_logo_wide_w250.png', width=250)
 with logo_nav2:
-    st.markdown("#### " + state.selected_persona if state.conversation else "")
+    st.markdown("#### " + state.chat.idea if state.chat.conversation else "")
 
 st.markdown("**Ideate, explore, generate code for ChatGPT integration with your app**")
 
-if not state.conversation:
+if not state.chat.conversation:
     st.markdown('### ChatGPT and generative AI models are about to transform almost every industry')
+
+    st.video('walkthrough.webm')
+
     st.markdown('#### 💬&nbsp; ChatStart helps stay ahead of the curve in three easy steps')
     st.markdown('### 1. Select an idea')
     st.success('''Start by selecting an idea for your app, startup, or business project.
@@ -399,31 +351,31 @@ if not state.conversation:
     st.image('story.png')
 
 
-if state.conversation:
-    # get icon from the persona name
-    state.icon = state.selected_persona.split()[0]
-    st.markdown(state.conversation
+if state.chat.conversation:
+    # get icon from the idea name
+    state.ux.icon = state.chat.idea.split()[0]
+    st.markdown(state.chat.conversation
                 .replace('System:', '⚙️ &nbsp;&nbsp;')
                 .replace('User:', '\n👤 &nbsp;&nbsp;')
-                .replace('Assistant:', '\n' + state.icon + ' &nbsp;&nbsp;'))
-    # if state.conversation contains DALL.E prompt in a code fenced block, then use the prompt to generate a new image
-    if '"' in state.conversation and 'DALL.E Expert Artist' in state.selected_persona:
-        num_quotes = state.conversation.count('"')
-        prompt = state.conversation.split('"')[num_quotes - 1]
+                .replace('Assistant:', '\n' + state.ux.icon + ' &nbsp;&nbsp;'))
+    # if state.chat.conversation contains DALL.E prompt in a code fenced block, then use the prompt to generate a new image
+    if '"' in state.chat.conversation and 'DALL.E Expert Artist' in state.chat.idea:
+        num_quotes = state.chat.conversation.count('"')
+        prompt = state.chat.conversation.split('"')[num_quotes - 1]
         # generate image from prompt
         response = openai.Image.create(
             prompt=prompt,
             n=1,
             size="1024x1024"
         )
-        state.dalle_runs += 1
+        state.open_ai.dalle_runs += 1
 
         generated_image = response['data'][0]['url']
         st.image(generated_image, caption='DALL.E Generated Image')
         state.dalle_image = generated_image
-    if '"' in state.conversation and 'Shopping Recommender' in state.selected_persona:
-        num_quotes = state.conversation.count('"')
-        search_query = state.conversation.split('"')[num_quotes - 1]
+    if '"' in state.chat.conversation and 'Shopping Recommender' in state.chat.idea:
+        num_quotes = state.chat.conversation.count('"')
+        search_query = state.chat.conversation.split('"')[num_quotes - 1]
         
         service = build("customsearch", "v1", developerKey=GOOGLE_DEVELOPER_KEY)
 
@@ -436,7 +388,7 @@ if state.conversation:
                     safe="active",
                 ).execute())
         
-        state.google_api_runs += 1
+        state.google.runs += 1
 
         ci1, ci2, ci3 = st.columns(3)
         with ci1:
@@ -459,78 +411,78 @@ if state.conversation:
             st.markdown('[{domain}]({link})'.format(domain=domain, link=link))
 
 
-    if '"' in state.conversation and 'Stable Diffusion Story Generator' in state.selected_persona:
-        num_quotes = state.conversation.count('"')
-        prompt = state.conversation.split('"')[num_quotes - 1]
+    if '"' in state.chat.conversation and 'Stable Diffusion Story Generator' in state.chat.idea:
+        num_quotes = state.chat.conversation.count('"')
+        prompt = state.chat.conversation.split('"')[num_quotes - 1]
         generated_image = generate_art_sd(prompt)
         st.image(generated_image, caption='Stable Diffusion Generated Image')
-        state.sd_image = generated_image
+        state.stability.image = generated_image
 
-    if 'Dataset Generator' in state.selected_persona and '```' in state.conversation:
-        num_csv = state.conversation.count('```')
-        dataset_csv = state.conversation.split('```')[num_csv - 1]
+    if 'Dataset Generator' in state.chat.idea and '```' in state.chat.conversation:
+        num_csv = state.chat.conversation.count('```')
+        dataset_csv = state.chat.conversation.split('```')[num_csv - 1]
         csv_source = io.StringIO(dataset_csv)
         df = pd.read_table(csv_source, sep=",", index_col=1, skipinitialspace=True)
-        state.dataset_generated = df
-        st.dataframe(state.dataset_generated)
+        state.content.dataframe = df
+        st.dataframe(state.content.dataframe)
     
-    if 'Vegalite Chart Generator' in state.selected_persona and '$schema' in state.conversation:
+    if 'Vegalite Chart Generator' in state.chat.idea and '$schema' in state.chat.conversation:
         # capture the chart json from second code fenced block
-        # and assign it to state.vegalite_chart
-        num_jsons = state.conversation.count('```')
-        chart_json = state.conversation.split('```')[num_jsons - 1]
-        state.vegalite_chart = json.loads(chart_json.replace('vega-lite {', '{'))
-        redundant_instruction = state.conversation.find('You can copy and paste this code into a Vega-Lite editor')
+        # and assign it to state.content.vegalite
+        num_jsons = state.chat.conversation.count('```')
+        chart_json = state.chat.conversation.split('```')[num_jsons - 1]
+        state.content.vegalite = json.loads(chart_json.replace('vega-lite {', '{'))
+        redundant_instruction = state.chat.conversation.find('You can copy and paste this code into a Vega-Lite editor')
         if redundant_instruction != -1:
-            state.conversation = state.conversation[:redundant_instruction]
-        st.vega_lite_chart(state.vegalite_chart)
+            state.chat.conversation = state.chat.conversation[:redundant_instruction]
+        st.vega_lite_chart(state.content.vegalite)
 
-    if 'youtube.com' in state.conversation:
+    if 'youtube.com' in state.chat.conversation:
         # create a list of youtube links
-        youtube_links = [link for link in state.conversation.split() if 'youtube.com' in link]
+        youtube_links = [link for link in state.chat.conversation.split() if 'youtube.com' in link]
         youtube_url = youtube_links[-1]
         st.video(youtube_url)        
-        state.youtube_trailer = youtube_url
+        state.content.youtube = youtube_url
 
-if state.conversation:
+if state.chat.conversation:
     with st.form(key="chat_form"):
         c1, c2 = st.columns([9, 1])
         with c1:
-            user_input = st.text_area("👤 &nbsp;&nbsp;Your message here", value=state.user_prompt)
+            user_input = st.text_area("👤 &nbsp;&nbsp;Your message here", value=state.chat.prompt)
         with c2:
             st.caption('Discuss')
-            submit_button = st.form_submit_button(label=state.icon)
+            submit_button = st.form_submit_button(label=state.ux.icon)
         if submit_button:
-            state.conversation += '\nUser: ' + user_input
-            state.user_prompt = ''
-            # parse the state.conversation into messages list considering multi-line User, System, and Assistant messages.
+            state.chat.conversation += '\nUser: ' + user_input
+            state.chat.prompt = ''
+            # parse the state.chat.conversation into messages list considering multi-line User, System, and Assistant messages.
             # If new line does not have a role, it is considered as continuation of current line.
-            state.messages = []
-            for line in state.conversation.splitlines():
+            state.chat.messages = []
+            for line in state.chat.conversation.splitlines():
                 if line.startswith('User:'):
-                    state.messages.append({"role": "user", "content": line[5:]})
+                    state.chat.messages.append({"role": "user", "content": line[5:]})
                 elif line.startswith('System:'):
-                    state.messages.append({"role": "system", "content": line[7:]})
+                    state.chat.messages.append({"role": "system", "content": line[7:]})
                 elif line.startswith('Assistant:'):
-                    state.messages.append({"role": "assistant", "content": line[10:]})
+                    state.chat.messages.append({"role": "assistant", "content": line[10:]})
                 else:
-                    state.messages[-1]["content"] += '\n' + line
+                    state.chat.messages[-1]["content"] += '\n' + line
             
             # call openai api
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo-0301",
-                messages=state.messages,
+                messages=state.chat.messages,
                 max_tokens=500,
                 temperature=0)
 
-            state.chatgpt_runs += 1
-            state.chatgpt_tokens_used += response.usage.total_tokens
+            state.open_ai.chatgpt_runs += 1
+            state.open_ai.tokens += response.usage.total_tokens
             # append the response to the conversation
-            state.conversation += '\n' + 'Assistant: ' + response.choices[0].message.content
+            state.chat.conversation += '\n' + 'Assistant: ' + response.choices[0].message.content
             # force render the page
-            state.get_code = True
+            state.ux.code = True
             st.experimental_rerun()
 
-if state.get_code:
+if state.ux.code:
     st.sidebar.markdown("### 🪄 Get code")
     st.sidebar.button('Generate tutorial with code', on_click=generate_code)
