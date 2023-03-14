@@ -1,3 +1,4 @@
+.DS_Store
 key-to-toml.py
 .streamlit/secrets.toml
 firestore-key.json

@@ -270,7 +270,7 @@ with logo_nav2:
 st.markdown("**Ideate, explore, generate code for ChatGPT integration with your app**")
 
 if not state.chat.conversation:
-    st.markdown('### ChatGPT and generative AI models are about to transform almost every industry')
+    st.markdown('### ChatGPT and generative AI models are about to transform every industry')
 
     st.video('walkthrough.webm')
 
