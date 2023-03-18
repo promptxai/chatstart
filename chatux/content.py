@@ -24,6 +24,8 @@ def intro():
     
     st.markdown('<br/><br/>', unsafe_allow_html=True)
 
+    st.video('https://www.youtube.com/watch?v=kr1rX9wskG0')
+
     logo_nav1, logo_nav2 = st.columns([3, 5])
     with logo_nav1:
         st.image('chatstart_logo_wide_w250.png', width=250)
