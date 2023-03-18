@@ -34,7 +34,7 @@ if 'chat' not in state:
 
 # Set page config
 st.set_page_config(
-    page_title="ChatStart - Ideate, explore, generate code for ChatGPT integration with your app",
+    page_title="ChatStart - Create, explore, generate code for a Chatbot. Fast!",
     page_icon="chatstart_icon_32.png",
     layout="centered",
     initial_sidebar_state=state.ux.sidebar)

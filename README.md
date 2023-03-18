@@ -1,4 +1,4 @@
-# ChatStart
+# 💬 ChatStart
 
 ChatStart App for getting started with building your own chatbot reusing this code. You can also run this app on your laptop to create, ideate, explore, and download custom code snippets for chatbots you create using the app.
 
