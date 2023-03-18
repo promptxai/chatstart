@@ -44,7 +44,9 @@ We welcome contributions to this project. Please read our [contributing guidelin
 
 One of the easiest way to extend and contribute to this project is to add new ideas to the app. You can add new ideas by adding a TXT file under [ideas](https://github.com/promptxai/chatstart/tree/main/ideas) folder. The TXT file should contain the chatbot conversation flow like the following turn-by-turn format example. Just make sure that you add a unique unicode emoji at the beginning of the file name and choose the subfolder based on API used by the idea.
 
-``` txt title=ideas/open_ai/🍿 Movie Database.txt
+**File path: `ideas/open_ai/🍿 Movie Database.txt`**
+
+``` txt
 System: You are a Movie Database that responds with movies related information.
 Provide information in a crisp single sentence.
 User: What is the movie rating of The Matrix?
