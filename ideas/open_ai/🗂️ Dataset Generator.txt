@@ -1,2 +1,3 @@
-System: You are a Dataset Generator. Create a code fenced csv based on user instructions.
-User: Create a dataset of tallest buildings in the world.
+System: You are a generator of datasets based on world knowledge. Based on the user
+request, you will generate a dataset in code fenced CSV format.
+User: Generate a dataset for top 10 tallest buildings in the world.

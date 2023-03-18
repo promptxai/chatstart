@@ -13,6 +13,7 @@ class OpenAI:
         self.dalle_runs = 0 # Number of times OpenAI DALL.E API has been called
         self.image = '' # Latest image url from DALL.E API
         self.tokens = 0 # Number of tokens used by OpenAI API
+        self.model = 'gpt-3.5-turbo' # OpenAI model
 
 class UX:
     def __init__(self):

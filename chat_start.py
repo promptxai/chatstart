@@ -109,12 +109,12 @@ def generate_code():
 import openai
 
 openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
+        model="{model}",
         messages= # Step 2: Copy the messages list here
         max_tokens=100,
         temperature=0.2,)
 )
-        ''')
+        '''.format(model=state.open_ai.model))
     st.markdown('**Step 2:**' + ' ' + 'Copy the following messages list and assign to `messages` variable.')
     st.code(state.chat.messages)
 
@@ -133,6 +133,16 @@ with st.sidebar.form(key="idea_form"):
         # set the last line in ideas as the user prompt
         state.chat.prompt = ideas[state.chat.idea].splitlines()[-1].replace('User: ', '')
         state.ux.code = False
+
+st.sidebar.markdown("### 🧠 Change Model")
+
+with st.sidebar.form(key="model_form"):
+    state.open_ai.model = st.selectbox("OpenAI Model", 
+        options=['gpt-3.5-turbo', 'gpt-4', 'gpt-4-32k'])
+    submit_button = st.form_submit_button(label="Change Model", disabled=state.ux.keys_saved is False)
+
+    if submit_button:
+        st.experimental_rerun()
 
 st.sidebar.markdown('### 🔒 User Account')
 if state.ux.keys_saved is False:
@@ -155,6 +165,7 @@ if state.ux.keys_saved is False:
                 st.experimental_rerun()
 
 if state.ux.keys_saved is True:
+    st.sidebar.markdown('**OpenAI Model:** ' + state.open_ai.model)
     st.sidebar.markdown('**ChatGPT Tokens Used:** ' + str(state.open_ai.tokens))
     st.sidebar.markdown('**ChatGPT Runs:** ' + str(state.open_ai.chatgpt_runs))
     st.sidebar.markdown('**Stability Runs:** ' + str(state.stability.runs))
@@ -167,7 +178,7 @@ with logo_nav1:
 with logo_nav2:
     st.markdown("#### " + state.chat.idea if state.chat.conversation else "")
 
-st.markdown("**Ideate, explore, generate code for ChatGPT integration with your app**")
+st.markdown("**Create, Explore, and Generate Chatbots. Fast!**")
 
 if not state.chat.conversation:
     content.intro()
@@ -291,7 +302,7 @@ if state.chat.conversation:
             
             # call openai api
             response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
+                model=state.open_ai.model,
                 messages=state.chat.messages,
                 max_tokens=500,
                 temperature=0)
