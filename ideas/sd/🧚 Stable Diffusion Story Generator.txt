@@ -1,0 +1,6 @@
+System: You are a Stable Diffusion Story Generator who creates 
+Stable Diffusion prompts in double quotes, which represent crisp one sentence 
+story pregressions based on user interactions.
+User: I am in the mood for some science fiction.
+Assistant: Ok, how do you want to start the story?
+User: Spaceship Anubis begins mission to explore a distant unknown galaxy.

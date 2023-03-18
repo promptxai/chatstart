@@ -3,9 +3,7 @@ import openai
 import pandas as pd
 import json
 import io
-from google.cloud import firestore
 import datetime
-from google.oauth2 import service_account
 import os
 import warnings
 from PIL import Image
@@ -13,9 +11,7 @@ from stability_sdk import client
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 from googleapiclient.discovery import build
 
-from chatstart_sdk import session
-
-GOOGLE_DEVELOPER_KEY = os.environ['GOOGLE_DEVELOPER_KEY']
+from chatux import session, content
 
 # Setup session variables
 state = st.session_state
@@ -31,8 +27,6 @@ if 'content' not in state:
     state.content = session.Content()
 
 # User Experience
-if 'user' not in state:
-    state.user = session.User()
 if 'ux' not in state:
     state.ux = session.UX()
 if 'chat' not in state:
@@ -45,82 +39,31 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state=state.ux.sidebar)
 
-# Setup ideas
-ideas = {
-"🎨 DALL.E Expert Artist":
-'''System: You are a DALL.E Expert Artist who will ask the user questions about various 
-features of art they want to create and then generate a prompt using 
-DALL.E advanced features to get the best results.
-User: I want to create an image of a futuristic city.
-Assistant: Do you have a reference movie, style, or concept this is based on?
-User: Yes, it is based on the movie Blade Runner.''',
+# Setup API keys from environment variables or session state
+GOOGLE_DEVELOPER_KEY = os.environ.get('GOOGLE_DEVELOPER_KEY', state.google.key)
+openai.api_key = os.environ.get('OPENAI_API_KEY', state.open_ai.key)
+STABILITY_KEY = os.environ.get('STABILITY_KEY', state.stability.key)
+STABILITY_HOST='grpc.stability.ai:443'
 
-"💻 Mac Terminal": 
-'''System: You are a Mac Terminal. Based on natural language instructions respond
-only in single line shell commands. If the command is not recognized, respond with "Command not found".
-User: List files of current directory and copy to a text file called files_list.txt
-Assistant: `ls > files_list.txt`
-User: Parse paragraphs from https://en.wikipedia.org/wiki/Earth into a text file called earth.txt
-''',        
+if openai.api_key:
+    state.ux.keys_saved = True
 
-"🛍️ Shopping Recommender":
-'''System: You are a Shopping Recommender. Ask the user questions about their preferences,
-tasters, and lifestyle. Respond with the brand, name, and model of the product enclosed in double quotes.
-Also explain why the product is recommended in a crisp single sentence.
-User: I need some shopping recommendations.
-Assistant: Tell me more about your tastes and lifestyle, so I can recommend the best products.
-User: I am an artist, avid gamer, and an audiophile. I live in an ultra-modern loft apartment.
-Assistant: Nice! What are you interested in buying?
-User: I am looking for a Smart TV.
-''',
+# Hydrate ideas
+open_ai_ideas = {}
+content.hydrate_ideas(category='open_ai', ideas=open_ai_ideas)
 
-"🍿 Movie Database": 
-'''System: You are a Movie Database that responds with movies related information.
-Provide information in a crisp single sentence.
-User: What is the movie rating of The Matrix?
-Assistant: The Matrix is rated 8.7/10 on IMDb.
-User: What is the link of the official trailer?''',
+sd_ideas = {}
+content.hydrate_ideas(category='sd', ideas=sd_ideas)
 
-"👩‍⚕️ Doctor": 
-'''System: You are a Doctor who understands symptoms by asking follow up questions 
-and when sufficient symptoms are known provides a diagnosis.
-User: I have a headache.
-Assistant: How long have you had a headache?
-User: For a week.
-Assistant: Do you have blurred vision?
-User: No, but I have a fever.''',
+google_ideas = {}
+content.hydrate_ideas(category='google', ideas=google_ideas)
 
-"💊 Pharmacist": 
-'''System: You are a Pharmacist who provides information about medicines, their usual dosage, 
-side effects, and interactions. Provide information in a crisp single sentence.
-User: What is the usual dosage of paracetamol?
-Assistant: The usual dosage of paracetamol is 1-2 tablets every 4-6 hours.
-User: What are the side effects of paracetamol?''',
-
-"🧚 Stable Diffusion Story Generator":
-'''System: You are a Stable Diffusion Story Generator who creates 
-Stable Diffusion prompts in double quotes, which represent crisp one sentence 
-story pregressions based on user interactions.
-User: I am in the mood for some science fiction.
-Assistant: Ok, how do you want to start the story?
-User: Spaceship Anubis begins mission to explore a distant unknown galaxy.''',
-
-"📊 Vegalite Chart Generator":
-'''System: You are a Vegalite Chart Generator that can also generate datasets to use in the chart.
-You ask the user a few questions about the data they want to visualize, type of chart,
-style, and other options. Then generate a vegalite chart code based on the instructions.
-User: Create a chart.
-Assistant: What data source should I use?
-User: Create a list of 10 most populous cities in the world.''',
-
-"🗂️ Dataset Generator":
-'''System: You are a Dataset Generator. Create a code fenced csv based on user instructions.
-User: Create a dataset of tallest buildings in the world.'''
-}
+ideas = open_ai_ideas | sd_ideas if STABILITY_KEY else open_ai_ideas
+ideas = ideas | google_ideas if GOOGLE_DEVELOPER_KEY else ideas
 
 def init_stability_api():
     state.stability.api = client.StabilityInference(
-        key=os.environ['STABILITY_KEY'], # API Key reference.
+        key=STABILITY_KEY, # API Key reference.
         verbose=True, # Print debug messages.
         engine="stable-diffusion-v1-5", # Set the engine to use for generation. 
         # Available engines: stable-diffusion-v1 stable-diffusion-v1-5 stable-diffusion-512-v2-0 stable-diffusion-768-v2-0 
@@ -166,7 +109,7 @@ def generate_code():
 import openai
 
 openai.ChatCompletion.create(
-        model="gpt-3.5-turbo-0301",
+        model="gpt-3.5-turbo",
         messages= # Step 2: Copy the messages list here
         max_tokens=100,
         temperature=0.2,)
@@ -175,66 +118,13 @@ openai.ChatCompletion.create(
     st.markdown('**Step 2:**' + ' ' + 'Copy the following messages list and assign to `messages` variable.')
     st.code(state.chat.messages)
 
-if not state.user.waitlisted and not state.user.login_form and not state.user.authenticated:
-    with st.sidebar.form('waitlist_form'):
-        st.markdown('### Waitlist for ChatStart')
-        email = st.text_input("Email")
-        code = st.text_input("Code")
-        st.caption("If you have received a license key or promo code, enter it here.")
-        submit_button = st.form_submit_button(label="Apply")
-
-        if submit_button:
-            key_dict = json.loads(st.secrets["textkey"])
-            creds = service_account.Credentials.from_service_account_info(key_dict)
-            db = firestore.Client(credentials=creds, project="chatstart-aa174")
-            doc_ref = db.collection("waitlist").document(email)
-            doc = doc_ref.get()
-            if doc.exists:
-                st.sidebar.error("Email already in waitlist")
-            else:
-                doc_ref.set({
-                    'code': code,
-                    'timestamp': datetime.datetime.now()
-                })
-                state.user.waitlisted = True
-                st.sidebar.success("You have been added to the waitlist. We will notify you when you can use ChatStart.")
-
-def login():
-    state.user.login_form = True
-
-if not state.user.authenticated and not state.user.login_form:
-    st.sidebar.button('Login', on_click=login)
-
-if not state.user.authenticated and state.user.login_form:
-    with st.sidebar.form(key="login_form"):
-        login = st.text_input("Login")
-        password = st.text_input("Password", type="password")
-        submit_button = st.form_submit_button(label="Login")
-
-        if submit_button:
-            key_dict = json.loads(st.secrets["textkey"])
-            creds = service_account.Credentials.from_service_account_info(key_dict)
-            db = firestore.Client(credentials=creds, project="chatstart-aa174")
-            doc_ref = db.collection("users").document(login)
-            doc = doc_ref.get()
-            if doc.exists:
-                if doc.to_dict()['password'] == password:
-                    state.user.authenticated = True
-                    state.user.login = login
-                    state.user.login_form = False
-                    st.sidebar.success("Login successful")
-                else:
-                    st.sidebar.error("Incorrect password")
-            else:
-                st.sidebar.error("User does not exist")
-
 st.sidebar.markdown("### 💡 Select Idea")
 # create a form to collect user input
-with st.sidebar.form(key="role_form"):
+with st.sidebar.form(key="idea_form"):
     # add a text field to the form
-    state.chat.idea = st.selectbox("Start typing to search or select", ideas.keys())
+    state.chat.idea = st.selectbox("Type or scroll", ideas.keys())
     # add a submit button to the form
-    submit_button = st.form_submit_button(label="Explore Chat", disabled=not state.user.authenticated)
+    submit_button = st.form_submit_button(label="Explore Chat", disabled=state.ux.keys_saved is False)
 
     # if the form is submitted
     if submit_button:
@@ -245,21 +135,31 @@ with st.sidebar.form(key="role_form"):
         state.ux.code = False
 
 st.sidebar.markdown('### 🔒 User Account')
-if state.user.authenticated:
-    # st.sidebar.markdown('Welcome ' + state.user.login)
+if state.ux.keys_saved is False:
+    with st.sidebar.form(key="key_form"):
+        state.open_ai.key = st.text_input("OpenAI Key (Required)", 
+            value=state.open_ai.key, type="password", 
+            help="Get your required OpenAI Key from [here](https://beta.openai.com/account/api-keys).")
+        state.google.key = st.text_input("Google Key", 
+            value=state.google.key, type="password", 
+            help="Get your optional Google Key from [here](https://console.cloud.google.com/apis/credentials).")
+        state.stability.key = st.text_input("Stability Key", 
+            value=state.stability.key, type="password",
+            help="Get your optional Stability Key from [here](https://beta.dreamstudio.ai/membership?tab=apiKeys).")
+        submit_keys = st.form_submit_button(label="Activate Session")
+        if submit_keys:
+            if state.open_ai.key == '':
+                st.sidebar.error('OpenAI Key is required.')
+            else:
+                state.ux.keys_saved = True
+                st.experimental_rerun()
+
+if state.ux.keys_saved is True:
     st.sidebar.markdown('**ChatGPT Tokens Used:** ' + str(state.open_ai.tokens))
     st.sidebar.markdown('**ChatGPT Runs:** ' + str(state.open_ai.chatgpt_runs))
     st.sidebar.markdown('**Stability Runs:** ' + str(state.stability.runs))
     st.sidebar.markdown('**DALL.E Runs:** ' + str(state.open_ai.dalle_runs))
     st.sidebar.markdown('**Google API Runs:** ' + str(state.google.runs))
-
-nav1, nav2 = st.columns([7, 1])
-with nav1:
-    st.write('Please waitlist for 💬&nbsp; ChatStart to enable featues.')
-with nav2:
-    if st.button('Waitlist'):
-        state.ux.sidebar = 'expanded'
-        st.experimental_rerun()
 
 logo_nav1, logo_nav2 = st.columns([3, 5])
 with logo_nav1:
@@ -270,86 +170,7 @@ with logo_nav2:
 st.markdown("**Ideate, explore, generate code for ChatGPT integration with your app**")
 
 if not state.chat.conversation:
-    st.markdown('### ChatGPT and generative AI models are about to transform every industry')
-
-    st.video('walkthrough.webm')
-
-    st.markdown('#### 💬&nbsp; ChatStart helps stay ahead of the curve in three easy steps')
-    st.markdown('### 1. Select an idea')
-    st.success('''Start by selecting an idea for your app, startup, or business project.
-    We will continue to add more ideas to the list covering industries, roles, and use cases.
-    &nbsp;💬&nbsp; ChatStart Premium users can also save their own ideas privately or share with others.''')
-    st.image('ideate.png', width=350)
-    
-    st.markdown('### 2. Explore in chat')
-    st.info('''Once you have selected an idea, you can explore it in a custom chat powered by ChatGPT
-    and other generative AI models. You can fine tune your chatbot by simply chatting with it.
-    &nbsp;💬&nbsp; ChatStart Premium users can also save their chat explorations privately or share with others.''')
-
-    st.image('explore.png')
-
-    st.markdown('### 3. Generate tutorial and code')
-    st.warning('''Once satisfied with your chat exploration, you can hit `Generate Code` button. This will generate
-    a custom tutorial for this idea and code for integrating ChatGPT with your app. Your entire chat exploration
-    will be available to fine tune your chatbot.
-    &nbsp;💬&nbsp; ChatStart Premium users can also get access to advanced code and tutorials to integrated
-    with multiple APIs and models.''')
-
-    st.image('tutorial_code.png')
-
-    st.markdown('---')
-
-    st.markdown('## More Features')
-
-    st.markdown('### Contextual Image Search')
-    st.success('''Integrate Google Image Search within your chat to discover images and links.
-    You can use this for creating chat based visual search apps for shopping, education, etc.
-    &nbsp;💬&nbsp; ChatStart Premium users can also save these discovered links and get access to advanced code
-    for Google API integrations.
-    ''')
-
-    st.image('shopping.png')
-
-    st.markdown('### Chain multiple models')
-    st.info('''Make your chat sessions super productive by chaining ChatGPT text with DALL.E image generations.
-    &nbsp;💬&nbsp; ChatStart Premium users can also get access to advanced code and tutorials to integrated
-    with multiple APIs and models.''')
-
-    st.image('chaining.png')
-
-    st.markdown('### Generate Python Dataframes')
-    st.success('''Integrate ChatStart generated code within your Python apps getting access to native constructs
-    like Pandas DataFrames, JSON objects, data structures like lists and dictionaries directly from within
-    a chat exploration.
-    &nbsp;💬&nbsp; ChatStart Premium users can also save these native objects and get access to advanced code
-    and tutorials to perform improved integrations.''')
-
-    st.image('datasets.png')
-
-    st.markdown('### Browse Media Inplace')
-    st.warning('''Use chat to browse media, see images, watch related videos in place.
-    &nbsp;💬&nbsp; ChatStart Premium users can save these discovered media objects
-    and also connect with multiple media providers.''')
-
-    st.image('media.png')
-
-    st.markdown('### Query Data and Generate Charts Interactively')
-    st.info('''Use natural language to query world knowledge for generating custom datasets 
-    and then visualize these datasets into charts and analytics, which can be modified using plain English.
-    &nbsp;💬&nbsp; ChatStart Premium users can also save these datasets and analytics for
-    retrieving at a later date or sharing with others.''')
-
-    st.image('charts.png')
-
-    st.markdown('### Simulate Expert Advisor')
-    st.image('specialist.png')
-
-    st.markdown('### Specialized Learning Tool')
-    st.image('learning.png')
-
-    st.markdown('### Visual Story Generation')
-    st.image('story.png')
-
+    content.intro()
 
 if state.chat.conversation:
     # get icon from the idea name
@@ -470,7 +291,7 @@ if state.chat.conversation:
             
             # call openai api
             response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo-0301",
+                model="gpt-3.5-turbo",
                 messages=state.chat.messages,
                 max_tokens=500,
                 temperature=0)

@@ -1,8 +1,6 @@
 openai
 pandas
-streamlit
 watchdog
-google-cloud-firestore
-google-auth
 stability-sdk
 google-api-python-client
+streamlit

@@ -1,5 +1,6 @@
 class Stability:
     def __init__(self):
+        self.key = '' # Stability API key
         self.initialized = False # True if stability API is initialized
         self.api = None # Stabile Diffusion API object
         self.image = '' # Latest image url from stability API
@@ -7,6 +8,7 @@ class Stability:
 
 class OpenAI:
     def __init__(self):
+        self.key = '' # OpenAI API key
         self.chatgpt_runs = 0 # Number of times OpenAI ChatGPT API has been called
         self.dalle_runs = 0 # Number of times OpenAI DALL.E API has been called
         self.image = '' # Latest image url from DALL.E API
@@ -15,15 +17,9 @@ class OpenAI:
 class UX:
     def __init__(self):
         self.icon = '💬' # ChatStart active persona icon unicode
-        self.sidebar = 'collapsed' # Sidebar state
+        self.sidebar = 'expanded' # Sidebar state
         self.code = False # Show code
-
-class User:
-    def __init__(self):
-        self.login = '' # User login email
-        self.waitlisted = False # True if user is waitlisted
-        self.authenticated = False # True if user is authenticated
-        self.login_form = False # True if login form is shown
+        self.keys_saved = False # True if API keys have been saved
 
 class Chat:
     def __init__(self):
@@ -34,6 +30,7 @@ class Chat:
 
 class Google:        
     def __init__(self):
+        self.key = '' # Google API key
         self.runs = 0 # Number of times Google API has been called
         self.response = None # Google API response
 
