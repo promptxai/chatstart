@@ -22,7 +22,7 @@ def intro():
 
     st.image('tutorial_code.png')
     
-    st.video('https://www.youtube.com/watch?v=kr1rX9wskG0')
+    st.video('walkthrough.webm')
 
     st.markdown('<br/><br/>', unsafe_allow_html=True)
 
