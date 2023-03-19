@@ -21,6 +21,7 @@ class UX:
         self.sidebar = 'expanded' # Sidebar state
         self.code = False # Show code
         self.keys_saved = False # True if API keys have been saved
+        self.gpt4_ideas = [] # List of GPT-4 friendly ideas
 
 class Chat:
     def __init__(self):

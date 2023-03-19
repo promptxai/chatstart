@@ -10,6 +10,7 @@ from PIL import Image
 from stability_sdk import client
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 from googleapiclient.discovery import build
+import yaml
 
 from chatux import session, content
 
@@ -35,7 +36,7 @@ if 'chat' not in state:
 # Set page config
 st.set_page_config(
     page_title="ChatStart - Create, explore, generate code for a Chatbot. Fast!",
-    page_icon="chatstart_icon_32.png",
+    page_icon="media/chatstart_icon_32.png",
     layout="centered",
     initial_sidebar_state=state.ux.sidebar)
 
@@ -60,6 +61,12 @@ content.hydrate_ideas(category='google', ideas=google_ideas)
 
 ideas = open_ai_ideas | sd_ideas if STABILITY_KEY else open_ai_ideas
 ideas = ideas | google_ideas if GOOGLE_DEVELOPER_KEY else ideas
+
+# Hydrate ideas by models
+with open('data/ideas-by-models.yaml', 'r') as file:
+    ideas_by_models = yaml.safe_load(file)
+
+state.ux.gpt4_ideas = ideas_by_models['gpt-4']
 
 def init_stability_api():
     state.stability.api = client.StabilityInference(
@@ -174,11 +181,13 @@ if state.ux.keys_saved is True:
 
 logo_nav1, logo_nav2 = st.columns([3, 5])
 with logo_nav1:
-    st.image('chatstart_logo_wide_w250.png', width=250)
+    st.image('media/chatstart_logo_wide_w250.png', width=250)
 with logo_nav2:
     st.markdown("#### " + state.chat.idea if state.chat.conversation else "")
-
-st.markdown("**Create, Explore, and Generate Chatbots. Fast!**")
+if state.chat.idea in state.ux.gpt4_ideas and state.open_ai.model != 'gpt-4':
+    st.markdown('*GPT-4 recommended for this idea*')
+else:
+    st.markdown("**Create, Explore, and Generate Chatbots. Fast!**")
 
 if not state.chat.conversation:
     content.intro()
