@@ -1,18 +1,12 @@
 import streamlit as st
-import openai
 import pandas as pd
 import json
 import io
-import datetime
 import os
-import warnings
-from PIL import Image
-from stability_sdk import client
-import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 from googleapiclient.discovery import build
-import yaml
 
 from chatux import session, content
+from genapi import model
 
 # Setup session variables
 state = st.session_state
@@ -42,11 +36,13 @@ st.set_page_config(
 
 # Setup API keys from environment variables or session state
 GOOGLE_DEVELOPER_KEY = os.environ.get('GOOGLE_DEVELOPER_KEY', state.google.key)
-openai.api_key = os.environ.get('OPENAI_API_KEY', state.open_ai.key)
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', state.open_ai.key)
 STABILITY_KEY = os.environ.get('STABILITY_KEY', state.stability.key)
 STABILITY_HOST='grpc.stability.ai:443'
 
-if openai.api_key:
+# Other keys are optional
+if OPENAI_API_KEY:
+    open_ai = model.OpenAI(OPENAI_API_KEY)
     state.ux.keys_saved = True
 
 # Hydrate ideas
@@ -63,50 +59,12 @@ ideas = open_ai_ideas | sd_ideas if STABILITY_KEY else open_ai_ideas
 ideas = ideas | google_ideas if GOOGLE_DEVELOPER_KEY else ideas
 
 # Hydrate ideas by models
-with open('data/ideas-by-models.yaml', 'r') as file:
-    ideas_by_models = yaml.safe_load(file)
+state.ux.gpt4_ideas = content.hydrate_ideas_by_models('gpt-4')
 
-state.ux.gpt4_ideas = ideas_by_models['gpt-4']
-
-def init_stability_api():
-    state.stability.api = client.StabilityInference(
-        key=STABILITY_KEY, # API Key reference.
-        verbose=True, # Print debug messages.
-        engine="stable-diffusion-v1-5", # Set the engine to use for generation. 
-        # Available engines: stable-diffusion-v1 stable-diffusion-v1-5 stable-diffusion-512-v2-0 stable-diffusion-768-v2-0 
-        # stable-diffusion-512-v2-1 stable-diffusion-768-v2-1 stable-inpainting-v1-0 stable-inpainting-512-v2-0
-    )
-    state.stability.initialized = True
-
-def generate_art_sd(prompt, size=512) -> Image:
-    if state.stability.initialized is False:
-        init_stability_api()
-
-    answers = state.stability.api.generate(
-        prompt=prompt,
-        cfg_scale=8.0,
-        width=size, # Generation width, defaults to 512 if not included.
-        height=size, # Generation height, defaults to 512 if not included.
-        sampler=generation.SAMPLER_K_DPMPP_2M # Choose which sampler we want to denoise our generation with.
-        # Defaults to k_dpmpp_2m if not specified. Clip Guidance only supports ancestral samplers.
-        # (Available Samplers: ddim, plms, k_euler, k_euler_ancestral, k_heun, k_dpm_2, k_dpm_2_ancestral, 
-        # k_dpmpp_2s_ancestral, k_lms, k_dpmpp_2m)
-    )
-
-    state.stability.runs += 1
-
-    # Set up our warning to print to the console if the adult content classifier is tripped.
-    # If adult content classifier is not tripped, save generated images.
-    for resp in answers:
-        for artifact in resp.artifacts:
-            if artifact.finish_reason == generation.FILTER:
-                warnings.warn(
-                    "Your request activated the API's safety filters and could not be processed."
-                    "Please modify the prompt and try again.")
-            if artifact.type == generation.ARTIFACT_IMAGE:
-                img = Image.open(io.BytesIO(artifact.binary))
-                return img
-
+stability = None
+if STABILITY_KEY:
+    stability = model.Stability(STABILITY_KEY)
+    state.stability.api = stability.api
 
 def generate_code():
     st.markdown('### Add {idea} to your app'.format(idea = state.chat.idea))
@@ -150,6 +108,10 @@ with st.sidebar.form(key="model_form"):
 
     if submit_button:
         st.experimental_rerun()
+
+if state.ux.code:
+    st.sidebar.markdown("### 🪄 Get code")
+    st.sidebar.button('Generate tutorial with code', on_click=generate_code)
 
 st.sidebar.markdown('### 🔒 User Account')
 if state.ux.keys_saved is False:
@@ -203,14 +165,8 @@ if state.chat.conversation:
     if '"' in state.chat.conversation and 'DALL.E Expert Artist' in state.chat.idea:
         num_quotes = state.chat.conversation.count('"')
         prompt = state.chat.conversation.split('"')[num_quotes - 1]
-        # generate image from prompt
-        response = openai.Image.create(
-            prompt=prompt,
-            n=1,
-            size="1024x1024"
-        )
+        response = open_ai.image(prompt)      
         state.open_ai.dalle_runs += 1
-
         generated_image = response['data'][0]['url']
         st.image(generated_image, caption='DALL.E Generated Image')
         state.dalle_image = generated_image
@@ -255,7 +211,8 @@ if state.chat.conversation:
     if '"' in state.chat.conversation and 'Stable Diffusion Story Generator' in state.chat.idea:
         num_quotes = state.chat.conversation.count('"')
         prompt = state.chat.conversation.split('"')[num_quotes - 1]
-        generated_image = generate_art_sd(prompt)
+        generated_image = stability.generate_art_sd(prompt)
+        state.stability.runs += 1
         st.image(generated_image, caption='Stable Diffusion Generated Image')
         state.stability.image = generated_image
 
@@ -310,11 +267,10 @@ if state.chat.conversation:
                     state.chat.messages[-1]["content"] += '\n' + line
             
             # call openai api
-            response = openai.ChatCompletion.create(
+            response = open_ai.chat(
                 model=state.open_ai.model,
                 messages=state.chat.messages,
-                max_tokens=500,
-                temperature=0)
+                max_tokens=500)
 
             state.open_ai.chatgpt_runs += 1
             state.open_ai.tokens += response.usage.total_tokens
@@ -324,6 +280,3 @@ if state.chat.conversation:
             state.ux.code = True
             st.experimental_rerun()
 
-if state.ux.code:
-    st.sidebar.markdown("### 🪄 Get code")
-    st.sidebar.button('Generate tutorial with code', on_click=generate_code)
