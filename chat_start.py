@@ -162,6 +162,7 @@ if state.chat.conversation:
                 .replace('System:', '⚙️ &nbsp;&nbsp;')
                 .replace('User:', '\n👤 &nbsp;&nbsp;')
                 .replace('Assistant:', '\n' + state.ux.icon + ' &nbsp;&nbsp;'))
+
     # if state.chat.conversation contains DALL.E prompt in a code fenced block, then use the prompt to generate a new image
     if '"' in state.chat.conversation and 'DALL.E Expert Artist' in state.chat.idea:
         num_quotes = state.chat.conversation.count('"')
@@ -171,6 +172,7 @@ if state.chat.conversation:
         generated_image = response['data'][0]['url']
         st.image(generated_image, caption='DALL.E Generated Image')
         state.dalle_image = generated_image
+
     if '"' in state.chat.conversation and 'Shopping Recommender' in state.chat.idea:
         num_quotes = state.chat.conversation.count('"')
         search_query = state.chat.conversation.split('"')[num_quotes - 1]
@@ -207,7 +209,6 @@ if state.chat.conversation:
             domain = link.split('/')[2]
             st.markdown('[![]({thumbnail})]({link})'.format(thumbnail=thumbnail, link=link))
             st.markdown('[{domain}]({link})'.format(domain=domain, link=link))
-
 
     if '"' in state.chat.conversation and 'Stable Diffusion Story Generator' in state.chat.idea:
         num_quotes = state.chat.conversation.count('"')
