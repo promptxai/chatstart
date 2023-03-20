@@ -1,0 +1,39 @@
+🪷 Multilingual Tutor:
+  model: 'gpt-4'
+  temperature: 0.5
+🧮 Math Teacher:
+  model: 'gpt-4'
+  temperature: 0
+🛍️ Shopping Recommender:
+  model: 'gpt-3.5-turbo'
+  temperature: 0.5
+🍿 Movie Database:
+  model: 'gpt-3.5-turbo'
+  temperature: 0.2
+👩‍⚕️ Doctor:
+  model: 'gpt-3.5-turbo'
+  temperature: 0
+💊 Pharmacist:
+  model: 'gpt-3.5-turbo'
+  temperature: 0
+🎨 DALL.E Expert Artist:
+  model: 'gpt-3.5-turbo'
+  temperature: 0.9
+💻 Mac Terminal:
+  model: 'gpt-3.5-turbo'
+  temperature: 0
+🗂️ Dataset Generator:
+  model: 'gpt-3.5-turbo'
+  temperature: 0.5
+📊 Vegalite Chart Generator:
+  model: 'gpt-3.5-turbo'
+  temperature: 0.5
+🧚 Stable Diffusion Story Generator:
+  model: 'gpt-3.5-turbo'
+  temperature: 0.9
+🌐 Webpage Summarizer:
+  model: 'gpt-4'
+  temperature: 0.7
+💬 ChatStart Parameters:
+  model: 'gpt-3.5-turbo'
+  temperature: 0

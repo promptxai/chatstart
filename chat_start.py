@@ -59,7 +59,7 @@ ideas = open_ai_ideas | sd_ideas if STABILITY_KEY else open_ai_ideas
 ideas = ideas | google_ideas if GOOGLE_DEVELOPER_KEY else ideas
 
 # Hydrate ideas by models
-state.ux.gpt4_ideas = content.hydrate_ideas_by_models('gpt-4')
+state.ux.parameters = content.hydrate_parameters()
 
 stability = None
 if STABILITY_KEY:
@@ -77,9 +77,9 @@ openai.ChatCompletion.create(
         model="{model}",
         messages= # Step 2: Copy the messages list here
         max_tokens=100,
-        temperature=0.2,)
+        temperature={temperature},)
 )
-        '''.format(model=state.open_ai.model))
+        '''.format(model=state.open_ai.model, temperature=state.chat.temperature))
     st.markdown('**Step 2:**' + ' ' + 'Copy the following messages list and assign to `messages` variable.')
     st.code(state.chat.messages)
 
@@ -97,6 +97,7 @@ with st.sidebar.form(key="idea_form"):
         state.chat.conversation = '\n'.join(ideas[state.chat.idea].splitlines()[:-1])
         # set the last line in ideas as the user prompt
         state.chat.prompt = ideas[state.chat.idea].splitlines()[-1].replace('User: ', '')
+        state.chat.temperature = state.ux.parameters[state.chat.idea]['temperature']
         state.ux.code = False
 
 st.sidebar.markdown("### 🧠 Change Model")
@@ -146,7 +147,7 @@ with logo_nav1:
     st.image('media/chatstart_logo_wide_w250.png', width=250)
 with logo_nav2:
     st.markdown("#### " + state.chat.idea if state.chat.conversation else "")
-if state.chat.idea in state.ux.gpt4_ideas and state.open_ai.model != 'gpt-4':
+if state.ux.parameters[state.chat.idea]['model'] == 'gpt-4' and state.open_ai.model != 'gpt-4':
     st.markdown('*GPT-4 recommended for this idea*')
 else:
     st.markdown("**Create, Explore, and Generate Chatbots. Fast!**")
@@ -270,7 +271,8 @@ if state.chat.conversation:
             response = open_ai.chat(
                 model=state.open_ai.model,
                 messages=state.chat.messages,
-                max_tokens=500)
+                max_tokens=500,
+                temperature=state.chat.temperature)
 
             state.open_ai.chatgpt_runs += 1
             state.open_ai.tokens += response.usage.total_tokens

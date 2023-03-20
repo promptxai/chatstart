@@ -2,10 +2,10 @@ import streamlit as st
 import os
 import yaml
 
-def hydrate_ideas_by_models(model: str):
-    with open('data/ideas-by-models.yaml', 'r') as file:
-        ideas_by_models = yaml.safe_load(file)
-        return ideas_by_models[model]
+def hydrate_parameters():
+    with open('data/parameters.yaml', 'r') as file:
+        parameters = yaml.safe_load(file)
+        return parameters
 
 def hydrate_ideas(category: str, ideas: dict):
     for file in os.listdir('ideas/' + category):

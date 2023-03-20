@@ -21,7 +21,7 @@ class UX:
         self.sidebar = 'expanded' # Sidebar state
         self.code = False # Show code
         self.keys_saved = False # True if API keys have been saved
-        self.gpt4_ideas = [] # List of GPT-4 friendly ideas
+        self.parameters = {} # Parameters from parameters.yaml
 
 class Chat:
     def __init__(self):
@@ -29,6 +29,7 @@ class Chat:
         self.conversation = [] # Active conversation
         self.idea = '' # Active idea
         self.prompt = '' # Active prompt
+        self.temperature = 0 # Active temperature parameter
 
 class Google:        
     def __init__(self):
