@@ -1,12 +1,8 @@
 import streamlit as st
-import pandas as pd
-import json
-import io
 import os
-from googleapiclient.discovery import build
 
 from chatux import session, content
-from genapi import model
+from genapi import model, integrate
 
 # Setup session variables
 state = st.session_state
@@ -38,7 +34,11 @@ st.set_page_config(
 GOOGLE_DEVELOPER_KEY = os.environ.get('GOOGLE_DEVELOPER_KEY', state.google.key)
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', state.open_ai.key)
 STABILITY_KEY = os.environ.get('STABILITY_KEY', state.stability.key)
-STABILITY_HOST='grpc.stability.ai:443'
+
+# Replace with Stability Host if different
+STABILITY_HOST=os.environ.get('STABILITY_HOST', 'grpc.stability.ai:443')
+# Replace with your own custom search engine ID or use ours
+CUSTOM_SEARCH_ENGINE_ID = os.environ.get('CUSTOM_SEARCH_ENGINE_ID', 'a65812bec92ed4b8c')
 
 # Other keys are optional
 if OPENAI_API_KEY:
@@ -156,93 +156,41 @@ if not state.chat.conversation:
     content.intro()
 
 if state.chat.conversation:
-    # get icon from the idea name
+    # Render chat conversation
     state.ux.icon = state.chat.idea.split()[0]
     st.markdown(state.chat.conversation
                 .replace('System:', '⚙️ &nbsp;&nbsp;')
                 .replace('User:', '\n👤 &nbsp;&nbsp;')
                 .replace('Assistant:', '\n' + state.ux.icon + ' &nbsp;&nbsp;'))
-
-    # if state.chat.conversation contains DALL.E prompt in a code fenced block, then use the prompt to generate a new image
+    
+    # Apply integrations
     if '"' in state.chat.conversation and 'DALL.E Expert Artist' in state.chat.idea:
-        num_quotes = state.chat.conversation.count('"')
-        prompt = state.chat.conversation.split('"')[num_quotes - 1]
-        response = open_ai.image(prompt)      
+        state.dalle_image = integrate.dalle(state.chat.conversation, open_ai)
         state.open_ai.dalle_runs += 1
-        generated_image = response['data'][0]['url']
-        st.image(generated_image, caption='DALL.E Generated Image')
-        state.dalle_image = generated_image
+        st.image(state.dalle_image, caption='DALL.E Generated Image')
 
     if '"' in state.chat.conversation and 'Shopping Recommender' in state.chat.idea:
-        num_quotes = state.chat.conversation.count('"')
-        search_query = state.chat.conversation.split('"')[num_quotes - 1]
-        
-        service = build("customsearch", "v1", developerKey=GOOGLE_DEVELOPER_KEY)
-
-        res = (service.cse().list(
-                    q=search_query,
-                    cx="a65812bec92ed4b8c",
-                    num=3,
-                    searchType="image",
-                    filter="1",
-                    safe="active",
-                ).execute())
-        
+        res = integrate.google_image(state.chat.conversation, num=3,
+            key=GOOGLE_DEVELOPER_KEY, cx=CUSTOM_SEARCH_ENGINE_ID)
         state.google.runs += 1
-
-        ci1, ci2, ci3 = st.columns(3)
-        with ci1:
-            thumbnail = res["items"][0]["image"]["thumbnailLink"]
-            link = res["items"][0]["image"]["contextLink"]
-            domain = link.split('/')[2]
-            st.markdown('[![]({thumbnail})]({link})'.format(thumbnail=thumbnail, link=link))
-            st.markdown('[{domain}]({link})'.format(domain=domain, link=link))
-        with ci2:
-            thumbnail = res["items"][1]["image"]["thumbnailLink"]
-            link = res["items"][1]["image"]["contextLink"]
-            domain = link.split('/')[2]
-            st.markdown('[![]({thumbnail})]({link})'.format(thumbnail=thumbnail, link=link))
-            st.markdown('[{domain}]({link})'.format(domain=domain, link=link))
-        with ci3:
-            thumbnail = res["items"][2]["image"]["thumbnailLink"]
-            link = res["items"][2]["image"]["contextLink"]
-            domain = link.split('/')[2]
-            st.markdown('[![]({thumbnail})]({link})'.format(thumbnail=thumbnail, link=link))
-            st.markdown('[{domain}]({link})'.format(domain=domain, link=link))
+        content.render_carousel(res, num=3)
 
     if '"' in state.chat.conversation and 'Stable Diffusion Story Generator' in state.chat.idea:
-        num_quotes = state.chat.conversation.count('"')
-        prompt = state.chat.conversation.split('"')[num_quotes - 1]
-        generated_image = stability.generate_art_sd(prompt)
+        state.stability.image = integrate.stability(state.chat.conversation, stability)
         state.stability.runs += 1
-        st.image(generated_image, caption='Stable Diffusion Generated Image')
-        state.stability.image = generated_image
-
+        st.image(state.stability.image, caption='Stable Diffusion Generated Image')
+        
     if 'Dataset Generator' in state.chat.idea and '```' in state.chat.conversation:
-        num_csv = state.chat.conversation.count('```')
-        dataset_csv = state.chat.conversation.split('```')[num_csv - 1]
-        csv_source = io.StringIO(dataset_csv)
-        df = pd.read_table(csv_source, sep=",", index_col=1, skipinitialspace=True)
-        state.content.dataframe = df
+        state.content.dataframe = integrate.dataframe(state.chat.conversation)
         st.dataframe(state.content.dataframe)
     
-    if 'Vegalite Chart Generator' in state.chat.idea and '$schema' in state.chat.conversation:
-        # capture the chart json from second code fenced block
-        # and assign it to state.content.vegalite
-        num_jsons = state.chat.conversation.count('```')
-        chart_json = state.chat.conversation.split('```')[num_jsons - 1]
-        state.content.vegalite = json.loads(chart_json.replace('vega-lite {', '{'))
-        redundant_instruction = state.chat.conversation.find('You can copy and paste this code into a Vega-Lite editor')
-        if redundant_instruction != -1:
-            state.chat.conversation = state.chat.conversation[:redundant_instruction]
+    if 'Vegalite Chart Generator' in state.chat.idea and '```' in state.chat.conversation:
+        state.content.vegalite = integrate.vegalite(state.chat.conversation)
         st.vega_lite_chart(state.content.vegalite)
 
     if 'youtube.com' in state.chat.conversation:
-        # create a list of youtube links
-        youtube_links = [link for link in state.chat.conversation.split() if 'youtube.com' in link]
-        youtube_url = youtube_links[-1]
-        st.video(youtube_url)        
-        state.content.youtube = youtube_url
+        state.content.youtube = integrate.youtube(state.chat.conversation)
+        st.video(state.content.youtube)        
 
 if state.chat.conversation:
     with st.form(key="chat_form"):
@@ -272,14 +220,12 @@ if state.chat.conversation:
             response = open_ai.chat(
                 model=state.open_ai.model,
                 messages=state.chat.messages,
-                max_tokens=500,
+                max_tokens=1000,
                 temperature=state.chat.temperature)
 
             state.open_ai.chatgpt_runs += 1
             state.open_ai.tokens += response.usage.total_tokens
-            # append the response to the conversation
             state.chat.conversation += '\n' + 'Assistant: ' + response.choices[0].message.content
-            # force render the page
             state.ux.code = True
             st.experimental_rerun()
 

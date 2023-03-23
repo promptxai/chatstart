@@ -2,6 +2,18 @@ import streamlit as st
 import os
 import yaml
 
+def render_carousel(res, num):
+    carousal = st.columns(num)
+    col_num = 0
+    for col in carousal:
+        with col:
+            thumbnail = res["items"][col_num]["image"]["thumbnailLink"]
+            link = res["items"][col_num]["image"]["contextLink"]
+            domain = link.split('/')[2]
+            st.markdown('[![]({thumbnail})]({link})'.format(thumbnail=thumbnail, link=link))
+            st.markdown('[{domain}]({link})'.format(domain=domain, link=link))
+        col_num += 1
+
 def hydrate_parameters():
     with open('data/parameters.yaml', 'r') as file:
         parameters = yaml.safe_load(file)
