@@ -5,3 +5,6 @@ stability-sdk
 google-api-python-client
 streamlit
 pyyaml
+barfi
+stmol
+rdkit-pypi

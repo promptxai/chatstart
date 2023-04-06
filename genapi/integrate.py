@@ -4,6 +4,35 @@ import json
 import io
 import streamlit as st
 
+# Molecule Generator
+from stmol import showmol
+import py3Dmol
+from rdkit import Chem
+from rdkit.Chem import AllChem
+
+def makeblock(smi):
+    mol = Chem.MolFromSmiles(smi)
+    mol = Chem.AddHs(mol)
+    AllChem.EmbedMolecule(mol)
+    mblock = Chem.MolToMolBlock(mol)
+    return mblock
+
+def render_mol(xyz):
+    xyzview = py3Dmol.view(height=400, width=650)
+    xyzview.addModel(xyz,'mol')
+    # xyzview.setStyle({'stick':{}})
+    xyzview.setStyle({'stick':{}, 'sphere':{'radius':0.5}})
+    xyzview.setBackgroundColor('white')
+    xyzview.zoomTo()
+    showmol(xyzview, height=500, width=750)
+
+def molecule(conversation):
+    num_quotes = conversation.count('"')
+    prompt = conversation.split('"')[num_quotes - 1]
+    blk=makeblock(prompt)
+    render_mol(blk)
+    return prompt
+
 def stability(conversation, model, size=512):
     num_quotes = conversation.count('"')
     prompt = conversation.split('"')[num_quotes - 1]

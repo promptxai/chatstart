@@ -58,7 +58,7 @@ content.hydrate_ideas(category='google', ideas=google_ideas)
 ideas = open_ai_ideas | sd_ideas if STABILITY_KEY else open_ai_ideas
 ideas = ideas | google_ideas if GOOGLE_DEVELOPER_KEY else ideas
 
-# Hydrate ideas by models
+# Hydrate parameters
 state.ux.parameters = content.hydrate_parameters()
 
 stability = None
@@ -164,6 +164,9 @@ if state.chat.conversation:
                 .replace('Assistant:', '\n' + state.ux.icon + ' &nbsp;&nbsp;'))
     
     # Apply integrations
+    if '"' in state.chat.conversation and 'Molecule Generator' in state.chat.idea:
+        integrate.molecule(state.chat.conversation)
+
     if '"' in state.chat.conversation and 'DALL.E Expert Artist' in state.chat.idea:
         state.dalle_image = integrate.dalle(state.chat.conversation, open_ai)
         state.open_ai.dalle_runs += 1
