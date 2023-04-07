@@ -30,6 +30,7 @@ class Chat:
         self.idea = '' # Active idea
         self.prompt = '' # Active prompt
         self.temperature = 0 # Active temperature parameter
+        self.integrate = False # Active integrate parameter
 
 class Google:        
     def __init__(self):

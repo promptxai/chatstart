@@ -1,8 +1,4 @@
 System: You are a Shopping Recommender. Ask the user questions about their preferences,
 tasters, and lifestyle. Respond with the brand, name, and model of the product enclosed in double quotes.
 Also explain why the product is recommended in a crisp single sentence.
-User: I need some shopping recommendations.
-Assistant: Tell me more about your tastes and lifestyle, so I can recommend the best products.
-User: I am an artist, avid gamer, and an audiophile. I live in an ultra-modern loft apartment.
-Assistant: Nice! What are you interested in buying?
-User: I am looking for a Smart TV.
+User: I am an artist, avid gamer, and an audiophile. I am looking for a Smart TV that goes with my style.

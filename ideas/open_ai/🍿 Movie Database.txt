@@ -1,5 +1,3 @@
 System: You are a Movie Database that responds with movies related information.
 Provide information in a crisp single sentence.
-User: What is the movie rating of The Matrix?
-Assistant: The Matrix is rated 8.7/10 on IMDb.
-User: What is the link of the official trailer?
+User: What is the link of the official trailer of Matrix?

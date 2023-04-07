@@ -83,6 +83,15 @@ openai.ChatCompletion.create(
     st.markdown('**Step 2:**' + ' ' + 'Copy the following messages list and assign to `messages` variable.')
     st.code(state.chat.messages)
 
+def setup_conversation():
+    last_user = ideas[state.chat.idea].rfind('User: ')
+    state.chat.conversation = '\n'.join(ideas[state.chat.idea].splitlines()[:-last_user])
+    state.chat.prompt = ideas[state.chat.idea][last_user + 6:]
+    state.chat.conversation = ideas[state.chat.idea][:last_user]
+
+    state.chat.temperature = state.ux.parameters[state.chat.idea]['temperature']
+    state.ux.code = False
+
 st.sidebar.markdown("### 💡 Select Idea")
 # create a form to collect user input
 with st.sidebar.form(key="idea_form"):
@@ -93,12 +102,7 @@ with st.sidebar.form(key="idea_form"):
 
     # if the form is submitted
     if submit_button:
-        # set the conversation to the selected idea after removing the last line and joining the lines with new line
-        state.chat.conversation = '\n'.join(ideas[state.chat.idea].splitlines()[:-1])
-        # set the last line in ideas as the user prompt
-        state.chat.prompt = ideas[state.chat.idea].splitlines()[-1].replace('User: ', '')
-        state.chat.temperature = state.ux.parameters[state.chat.idea]['temperature']
-        state.ux.code = False
+        setup_conversation()
 
 st.sidebar.markdown("### 🧠 Change Model")
 
@@ -164,36 +168,44 @@ if state.chat.conversation:
                 .replace('Assistant:', '\n' + state.ux.icon + ' &nbsp;&nbsp;'))
     
     # Apply integrations
+    state.chat.integrate = False
     if '"' in state.chat.conversation and 'Molecule Generator' in state.chat.idea:
         integrate.molecule(state.chat.conversation)
+        state.chat.integrate = True
 
     if '"' in state.chat.conversation and 'DALL.E Expert Artist' in state.chat.idea:
         state.dalle_image = integrate.dalle(state.chat.conversation, open_ai)
         state.open_ai.dalle_runs += 1
         st.image(state.dalle_image, caption='DALL.E Generated Image')
+        state.chat.integrate = True
 
     if '"' in state.chat.conversation and 'Shopping Recommender' in state.chat.idea:
         res = integrate.google_image(state.chat.conversation, num=3,
             key=GOOGLE_DEVELOPER_KEY, cx=CUSTOM_SEARCH_ENGINE_ID)
         state.google.runs += 1
         content.render_carousel(res, num=3)
+        state.chat.integrate = True
 
     if '"' in state.chat.conversation and 'Stable Diffusion Story Generator' in state.chat.idea:
         state.stability.image = integrate.stability(state.chat.conversation, stability)
         state.stability.runs += 1
         st.image(state.stability.image, caption='Stable Diffusion Generated Image')
+        state.chat.integrate = True
         
     if 'Dataset Generator' in state.chat.idea and '```' in state.chat.conversation:
         state.content.dataframe = integrate.dataframe(state.chat.conversation)
         st.dataframe(state.content.dataframe)
+        state.chat.integrate = True
     
     if 'Vegalite Chart Generator' in state.chat.idea and '```' in state.chat.conversation:
         state.content.vegalite = integrate.vegalite(state.chat.conversation)
-        st.vega_lite_chart(state.content.vegalite)
+        st.vega_lite_chart(state.content.vegalite, use_container_width=True)
+        state.chat.integrate = True
 
     if 'youtube.com' in state.chat.conversation:
         state.content.youtube = integrate.youtube(state.chat.conversation)
-        st.video(state.content.youtube)        
+        st.video(state.content.youtube)
+        state.chat.integrate = True        
 
 if state.chat.conversation:
     with st.form(key="chat_form"):

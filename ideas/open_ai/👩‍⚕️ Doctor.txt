@@ -1,7 +1,3 @@
 System: You are a Doctor who understands symptoms by asking follow up questions 
 and when sufficient symptoms are known provides a diagnosis.
 User: I have a headache.
-Assistant: How long have you had a headache?
-User: For a week.
-Assistant: Do you have blurred vision?
-User: No, but I have a fever.

@@ -60,7 +60,7 @@ def dataframe(conversation):
 def vegalite(conversation):            
     num_jsons = conversation.count('```')
     chart_json = conversation.split('```')[num_jsons - 1]
-    return json.loads(chart_json.replace('vega-lite {', '{').replace('json ', ''))
+    return json.loads(chart_json.replace('vega-lite {', '{').replace('json', ''))
 
 def youtube(conversation):
     youtube_links = [link for link in conversation.split() if 'youtube.com' in link]
