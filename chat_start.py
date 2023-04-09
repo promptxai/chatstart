@@ -108,7 +108,7 @@ st.sidebar.markdown("### 🧠 Change Model")
 
 with st.sidebar.form(key="model_form"):
     state.open_ai.model = st.selectbox("OpenAI Model", 
-        options=['gpt-3.5-turbo', 'gpt-4', 'gpt-4-32k'])
+        options=['gpt-3.5-turbo', 'gpt-4'])
     submit_button = st.form_submit_button(label="Change Model", disabled=state.ux.keys_saved is False)
 
     if submit_button:
@@ -171,6 +171,12 @@ if state.chat.conversation:
     state.chat.integrate = False
     if '"' in state.chat.conversation and 'Molecule Generator' in state.chat.idea:
         integrate.molecule(state.chat.conversation)
+        state.chat.integrate = True
+
+    if '|' in state.chat.conversation and 'Molecule Generator' in state.chat.idea:
+        state.dalle_image = integrate.dalle(conversation=state.chat.conversation, model=open_ai, separator='|')
+        state.open_ai.dalle_runs += 1
+        st.image(state.dalle_image, caption='DALL.E Generated Image')
         state.chat.integrate = True
 
     if '"' in state.chat.conversation and 'DALL.E Expert Artist' in state.chat.idea:

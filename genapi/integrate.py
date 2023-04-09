@@ -17,6 +17,13 @@ def makeblock(smi):
     mblock = Chem.MolToMolBlock(mol)
     return mblock
 
+def is_valid_smiles(smiles):
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        return mol is not None
+    except:
+        return False
+
 def render_mol(xyz):
     xyzview = py3Dmol.view(height=400, width=650)
     xyzview.addModel(xyz,'mol')
@@ -29,8 +36,11 @@ def render_mol(xyz):
 def molecule(conversation):
     num_quotes = conversation.count('"')
     prompt = conversation.split('"')[num_quotes - 1]
-    blk=makeblock(prompt)
-    render_mol(blk)
+    if not is_valid_smiles(prompt):
+        st.write('Invalid SMILES')
+    else:
+        blk=makeblock(prompt)
+        render_mol(blk)
     return prompt
 
 def stability(conversation, model, size=512):
@@ -38,9 +48,9 @@ def stability(conversation, model, size=512):
     prompt = conversation.split('"')[num_quotes - 1]
     return model.generate_art_sd(prompt, size)
 
-def dalle(conversation, model, size='1024x1024'):
-    num_quotes = conversation.count('"')
-    prompt = conversation.split('"')[num_quotes - 1]
+def dalle(conversation, model, size='1024x1024', separator='"'):
+    num_separators = conversation.count(separator)
+    prompt = conversation.split(separator)[num_separators - 1]
     response = model.image(prompt, size)      
     return response['data'][0]['url']
 
