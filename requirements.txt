@@ -3,7 +3,7 @@ pandas
 watchdog
 stability-sdk
 google-api-python-client
-streamlit
+streamlit==1.21.0
 pyyaml
 barfi
 stmol
